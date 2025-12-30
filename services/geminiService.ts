@@ -7,30 +7,30 @@ const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
 
 export const generateHallucinationAwareResponse = async (query: string): Promise<RAGResponse> => {
   // 1. Simulating Retrieval Logic (Mock RAG)
-  // In a real app, this would be a vector search.
   const relevantDocs = MOCK_DOCUMENTS.filter(doc => 
     query.toLowerCase().includes(doc.category.toLowerCase()) || 
     query.toLowerCase().includes(doc.title.toLowerCase()) ||
-    doc.content.toLowerCase().split(' ').some(word => word.length > 4 && query.toLowerCase().includes(word))
+    query.toLowerCase().split(' ').some(word => word.length > 3 && doc.content.toLowerCase().includes(word))
   );
 
   const context = relevantDocs.map(d => `[Source ${d.id}]: ${d.content}`).join('\n\n');
 
   // 2. Generation & Validation via Gemini
-  // We use a specific schema to force verification
   const response = await ai.models.generateContent({
     model: "gemini-3-flash-preview",
     contents: `
       User Question: ${query}
       
-      Retrieved Context:
-      ${context || "No specific documents found. Use general knowledge but flag uncertainty."}
+      Retrieved Context Data:
+      ${context || "No internal documents found. Rely on general knowledge but mark claims as 'Not verified against local database'."}
       
       Instructions:
-      1. Provide a comprehensive answer based primarily on the provided context.
-      2. Breakdown your answer into specific "claims".
-      3. For each claim, check if it is directly supported by the context.
-      4. Assign a confidence score (0-100) based on context support.
+      1. Role: You are VeriSight AI, a hallucination-aware informant.
+      2. Programming Tasks: If the user asks for code (Hello World, averages, etc.) in Python, Java, JS, or C, provide clean, standard snippets.
+      3. Information Tasks: If the user asks for information about India or general knowledge, be factual, objective, and detailed.
+      4. Verification: Breakdown your response into atomic "claims".
+      5. Cross-Check: For each claim, check if it matches the 'Retrieved Context Data' provided above.
+      6. Confidence: Set a confidence score based on how much of your answer is supported by the context.
     `,
     config: {
       responseMimeType: "application/json",
@@ -46,8 +46,8 @@ export const generateHallucinationAwareResponse = async (query: string): Promise
               properties: {
                 text: { type: Type.STRING },
                 isVerified: { type: Type.BOOLEAN },
-                sourceId: { type: Type.STRING, description: "The id from [Source id] if available" },
-                reason: { type: Type.STRING, description: "Why it is verified or not" }
+                sourceId: { type: Type.STRING },
+                reason: { type: Type.STRING }
               },
               required: ["text", "isVerified"]
             }
@@ -60,13 +60,12 @@ export const generateHallucinationAwareResponse = async (query: string): Promise
 
   try {
     const data = JSON.parse(response.text || '{}') as RAGResponse;
-    // Map internal IDs if needed
     data.sourceIds = relevantDocs.map(d => d.id);
     return data;
   } catch (e) {
     console.error("Failed to parse AI response", e);
     return {
-      answer: "I encountered an error processing the request.",
+      answer: "I encountered an error processing the information request.",
       claims: [],
       confidence: 0,
       sourceIds: []
