@@ -1,0 +1,8 @@
+{
+  "name": "VeriSight: Hallucination-Aware RAG",
+  "description": "A sophisticated Retrieval-Augmented Generation dashboard designed to verify claims and prevent hallucinations for technical and general knowledge queries.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
